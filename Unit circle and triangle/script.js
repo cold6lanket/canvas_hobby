@@ -72,7 +72,7 @@ function animate() {
 
     let sineX = deg + 500;
 
-    if (moveX === undefined) {
+    if (moveX === undefined && moveY === undefined) {
         moveX = 500;
         moveY = axisLength / 2;
     }
