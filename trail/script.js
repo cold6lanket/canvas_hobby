@@ -98,18 +98,37 @@ let bcMainCount = 0;
 const blockSpeed = 1;
 let blockBack = 10;
 
+let planeLeft = 500;
+
+const planeImg = new Image(); 
+planeImg.src = "./plane.png";
+planeImg.onload = function() {
+    animate();
+};
+
+window.addEventListener("keydown", (e) => {
+    if (e.key === 'ArrowLeft') {
+        if (planeLeft > 0) {
+            planeLeft -= 5; 
+        }
+    } else if (e.key === 'ArrowRight') {
+        if (planeLeft < 1920 - 50) {
+            planeLeft += 5; 
+        }
+    }
+});
+
 function animate() {
+    requestAnimationFrame(animate);
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const planeTop = 300;
-    const planeBottom = 350;
-    const planeLeft = 400;
-    const planeRight = 450;
+    const planeTop = 500;
+    const planeBottom = planeTop + 50;
+    const planeRight = planeLeft + 50;
 
-    // TODO. render plane image
-    ctx.beginPath();
-    ctx.rect(planeLeft, planeTop, 50, 50);
-    ctx.stroke();
+    // plane    
+    ctx.drawImage(planeImg, planeLeft, planeTop, 50, 50);
 
     blocks.forEach((b, i) => {
         // 20 = height of block
@@ -122,10 +141,10 @@ function animate() {
             if ((b.top + 20) > planeTop && b.top < planeBottom) {
                 if (blockLeft < planeLeft && blockRight > planeRight) {
                     // correct
-                    console.log("correct");
+                    //console.log("correct");
                 } else {
                     // mistake
-                    console.log("mistake");
+                    //console.log("mistake");
                 }
             }
 
@@ -141,8 +160,6 @@ function animate() {
     });
 
     bcMainCount += blockSpeed;
-
-    requestAnimationFrame(animate);
 }
 
-animate();
+//animate();
