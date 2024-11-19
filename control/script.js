@@ -14,51 +14,179 @@ const centerY = canvas.height / 2;
 const dialX = canvas.width / 2;
 const dialY = canvas.height / 3;
 
+const rwidth = 500;
+const rheight = 50;
+const rx = (canvas.width / 2) - rwidth / 2;
+const ry = dialY + 180;
+
 let needleDeg = 90;
+let ballX = centerX;
+let ballV = 0;
 
 let isArrowUp = false;
 let isArrowDown = false;
 
+let userDirection = 0; // -1 for left, 1 for right, 0 for no input
+const userAcceleration = 0.1; // User acceleration factor
+
+let targetAngle = 0;
+let targetBall = ballX;
+
+const maxSpeed = 2.8; // Maximum speed in radians per frame
+const accelerationFactor = 0.009; // Controls how quickly the needle accelerates/decelerates
+const tolerance = 0.01; // Tolerance range to consider the target as "reached"
+const friction = 0.98;
+
+const acceleration = 0.05; // Acceleration rate per frame
+const deceleration = 0.06; // Deceleration rate per frame
+let currentSpeed = 0;
+
+const ballRadius = 13;
+const rxStart = rx + lineWidth + ballRadius;
+const rxEnd = rx + rwidth - lineWidth;
+
 window.addEventListener("keydown", e => {
-    if (e.key === "ArrowUp") {
+    if (e.code === "ArrowUp") {
         isArrowUp = true;
     }
 
-    if (e.key === "ArrowDown") {
+    if (e.code === "ArrowDown") {
         isArrowDown = true;
+    }
+
+    if (e.code === "KeyS") {
+        userDirection = 1;
+    }
+
+    if (e.code === "KeyA") {
+        userDirection = -1;
     }
 });
 
 window.addEventListener("keyup", e => {
-    if (e.key === "ArrowUp") {
+    if (e.code === "ArrowUp") {
         isArrowUp = false;
     }
 
-    if (e.key === "ArrowDown") {
+    if (e.code === "ArrowDown") {
         isArrowDown = false;
+    }
+
+    if (e.code === "KeyS" || e.code === "KeyA") {
+        userDirection = 0;
     }
 });
 
 
 animate();
 
+function updateNeedle() {
+    let angleDifference = targetAngle - needleDeg;
+
+    // Stop if the current angle is within the tolerance range of the target angle
+    if (Math.abs(angleDifference) < tolerance) {
+        needleDeg = targetAngle; // Snap to target to avoid small oscillations
+    }
+
+    // Calculate the rotation speed based on distance, capped by maxSpeed
+    const rotationSpeed = Math.min(maxSpeed, Math.abs(angleDifference) * accelerationFactor);
+
+    // Update the current angle by moving it towards the target angle
+    if (angleDifference > 0) {
+        needleDeg += rotationSpeed;
+    } else {
+        needleDeg -= rotationSpeed;
+    }
+
+    if (!isArrowDown && !isArrowUp) {
+        if (currentSpeed < 0) {
+            currentSpeed = -1 * Math.max(Math.abs(currentSpeed) - deceleration, 0);
+        } else {
+            currentSpeed = Math.max(currentSpeed - deceleration, 0);
+        }
+    } else {
+        currentSpeed = Math.min(Math.abs(currentSpeed) + acceleration, maxSpeed);    
+    }
+
+    if (isArrowDown) {
+        currentSpeed *= -1;
+    }
+
+    needleDeg += currentSpeed;
+
+    if (needleDeg > 180) {
+        needleDeg = 180;
+    }
+
+    if (needleDeg < 0) {
+        needleDeg = 0;
+    }
+
+    drawDial();
+}
+
+function updateBall() {
+    const distance = targetBall - ballX;
+
+    // Apply acceleration towards the target
+    if (userDirection !== 0) {       
+        ballV += userDirection * userAcceleration;
+    } else {
+        ballV += acceleration * Math.sign(distance);
+    }
+
+    // Apply friction to slow down as the ball nears the target
+    ballV *= friction;
+
+    // Cap the ballV at the maximum speed
+    if (Math.abs(ballV) > maxSpeed) {
+        ballV = Math.sign(ballV) * maxSpeed;
+    }
+
+    // Move the ball
+    ballX += ballV;
+
+    // Stop the ball when it's close enough to the target
+    if (Math.abs(distance) < 0.5 && userDirection === 0) {
+        ballX = targetBall;
+        ballV = 0;
+    }
+
+    if (ballX + ballRadius > rxEnd) {
+        ballX = rxEnd - ballRadius;
+        ballV = 0;
+    }
+
+    if (ballX - ballRadius < rxStart) {
+        ballX = rxStart + ballRadius;
+        ballV = 0;
+    }
+
+    drawRect({
+        width: rwidth, 
+        height: rheight, 
+        x: rx, 
+        y: ry,
+        bX: ballX
+    });
+}
+
 function animate() {
     requestAnimationFrame(animate);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (isArrowUp) {
-        needleDeg += 0.1 + Math.random();
-    }
-
-    if (isArrowDown) {
-        needleDeg -= 0.8 + Math.random();
-    }
-
-    drawDial();
-
-    drawRect();
+    updateNeedle();
+    updateBall();
 }
+
+setInterval(() => {
+    targetAngle = generateRandomNumber(0, 180);    
+}, 3000);
+
+setInterval(() => {
+    targetBall = generateRandomNumber(rxStart, rxEnd);            
+}, 4000);
 
 
 function drawDial() {
@@ -103,7 +231,7 @@ function drawDial() {
 
     // lines
   
-	ctx.lineWidth = 2;
+    ctx.lineWidth = 2;
 
     for (let l = 16; l > 0; l--) {
         ctx.save();
@@ -168,13 +296,10 @@ function redBall({x, y, x0, r0, y0, x1, y1, r1}) {
     ctx.fill();
 }
 
-function drawRect() {
+function drawRect({width, height, x, y, bX}) {
+    const lineWidth = 5;
     ctx.lineWidth = lineWidth;
     ctx.save();
-    const width = 500;
-    const height = 50;
-    const x = (canvas.width / 2) - width / 2;
-    const y = dialY + 180;
 
     // background
     ctx.fillStyle = backgroundColor;
@@ -223,7 +348,7 @@ function drawRect() {
         r1: 15 
     });
 
-    slipBall(centerX - 50, bY);
+    slipBall(bX, bY);
 }
 
 function slipBall(x, y) {
@@ -236,3 +361,15 @@ function slipBall(x, y) {
 function deg2rad(deg) {
     return deg * (Math.PI / 180);
 }
+
+const generateRandomNumber = (min, max, step = 10) => {
+    const range = max - min;
+    
+    const numIncrements = Math.floor(range / step);
+    
+    const randomIncrement = Math.floor(Math.random() * (numIncrements + 1));
+    
+    const randomNumber = min + (randomIncrement * step);
+    
+    return randomNumber;
+};
