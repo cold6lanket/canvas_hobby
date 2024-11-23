@@ -23,11 +23,9 @@ let needleDeg = 90;
 let ballX = centerX;
 let ballV = 0;
 
-let isArrowUp = false;
-let isArrowDown = false;
-
-let userDirection = 0; // -1 for left, 1 for right, 0 for no input
-const userAcceleration = 0.1; // User acceleration factor
+let needleDir = 0;
+let ballDir = 0;
+const userAcceleration = 0.1;
 
 let targetAngle = 0;
 let targetBall = ballX;
@@ -47,33 +45,29 @@ const rxEnd = rx + rwidth - lineWidth;
 
 window.addEventListener("keydown", e => {
     if (e.code === "ArrowUp") {
-        isArrowUp = true;
+        needleDir = 1;
     }
 
     if (e.code === "ArrowDown") {
-        isArrowDown = true;
+        needleDir = -1;
     }
 
     if (e.code === "KeyS") {
-        userDirection = 1;
+        ballDir = 1;
     }
 
     if (e.code === "KeyA") {
-        userDirection = -1;
+        ballDir = -1;
     }
 });
 
 window.addEventListener("keyup", e => {
-    if (e.code === "ArrowUp") {
-        isArrowUp = false;
-    }
-
-    if (e.code === "ArrowDown") {
-        isArrowDown = false;
+    if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+        needleDir = 0;
     }
 
     if (e.code === "KeyS" || e.code === "KeyA") {
-        userDirection = 0;
+        ballDir = 0;
     }
 });
 
@@ -89,30 +83,32 @@ function updateNeedle() {
     }
 
     // Calculate the rotation speed based on distance, capped by maxSpeed
-    const rotationSpeed = Math.min(maxSpeed, Math.abs(angleDifference) * accelerationFactor);
-
+    let rotationSpeed = Math.min(maxSpeed, Math.abs(angleDifference) * accelerationFactor);
+    
     // Update the current angle by moving it towards the target angle
-    if (angleDifference > 0) {
-        needleDeg += rotationSpeed;
-    } else {
-        needleDeg -= rotationSpeed;
+    if (angleDifference < 0) {
+        rotationSpeed = -1 * rotationSpeed;
     }
 
-    if (!isArrowDown && !isArrowUp) {
+    if (needleDir === 0) {
         if (currentSpeed < 0) {
             currentSpeed = -1 * Math.max(Math.abs(currentSpeed) - deceleration, 0);
         } else {
-            currentSpeed = Math.max(currentSpeed - deceleration, 0);
+            currentSpeed = Math.max(currentSpeed - deceleration, 0);            
         }
     } else {
         currentSpeed = Math.min(Math.abs(currentSpeed) + acceleration, maxSpeed);    
     }
 
-    if (isArrowDown) {
+    if (needleDir < 0) {
         currentSpeed *= -1;
     }
 
-    needleDeg += currentSpeed;
+    if (currentSpeed && rotationSpeed) {
+        needleDeg += (currentSpeed + rotationSpeed) / 2;
+    } else {
+        needleDeg += currentSpeed + rotationSpeed;
+    }
 
     if (needleDeg > 180) {
         needleDeg = 180;
@@ -129,8 +125,8 @@ function updateBall() {
     const distance = targetBall - ballX;
 
     // Apply acceleration towards the target
-    if (userDirection !== 0) {       
-        ballV += userDirection * userAcceleration;
+    if (ballDir !== 0) {       
+        ballV += ballDir * userAcceleration;
     } else {
         ballV += acceleration * Math.sign(distance);
     }
@@ -147,7 +143,7 @@ function updateBall() {
     ballX += ballV;
 
     // Stop the ball when it's close enough to the target
-    if (Math.abs(distance) < 0.5 && userDirection === 0) {
+    if (Math.abs(distance) < 0.5 && ballDir === 0) {
         ballX = targetBall;
         ballV = 0;
     }
@@ -231,7 +227,7 @@ function drawDial() {
 
     // lines
   
-    ctx.lineWidth = 2;
+	ctx.lineWidth = 2;
 
     for (let l = 16; l > 0; l--) {
         ctx.save();
